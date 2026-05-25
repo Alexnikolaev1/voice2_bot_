@@ -12,6 +12,7 @@
     "check": "node --check api/webhook.js && node --check lib/router.js"
   },
   "dependencies": {
+    "@vercel/functions": "^2.0.0",
     "@vercel/kv": "^2.0.0",
     "axios": "^1.7.2",
     "form-data": "^4.0.0"

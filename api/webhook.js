@@ -1,6 +1,13 @@
 const { routeUpdateSafe } = require('../lib/router');
 const { wasProcessed, markProcessed } = require('../lib/storage/idempotency');
 
+let waitUntil = null;
+try {
+  waitUntil = require('@vercel/functions').waitUntil;
+} catch {
+  waitUntil = null;
+}
+
 function verifySecret(req) {
   const expected = process.env.MAX_WEBHOOK_SECRET;
   if (!expected) return true;
@@ -8,6 +15,18 @@ function verifySecret(req) {
     req.headers['x-max-bot-api-secret'] ||
     req.headers['X-Max-Bot-Api-Secret'];
   return received === expected;
+}
+
+function runInBackground(promise) {
+  if (typeof waitUntil === 'function') {
+    waitUntil(
+      promise.catch((err) => {
+        console.error('[webhook:bg]', err.message, err.code, err.source);
+      })
+    );
+    return true;
+  }
+  return false;
 }
 
 module.exports = async function handler(req, res) {
@@ -43,9 +62,16 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, duplicate: true });
     }
 
-    await routeUpdateSafe(update);
     await markProcessed(update);
-    return res.status(200).json({ ok: true });
+
+    const job = routeUpdateSafe(update);
+    const async = runInBackground(job);
+
+    if (!async) {
+      await job;
+    }
+
+    return res.status(200).json({ ok: true, async: async || false });
   } catch (err) {
     console.error('[webhook]', err);
     return res.status(200).json({ ok: true, error: 'handler_failed' });
