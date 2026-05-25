@@ -1,0 +1,15 @@
+{
+  "functions": {
+    "api/webhook.js": {
+      "memory": 512,
+      "maxDuration": 30
+    },
+    "api/health.js": {
+      "maxDuration": 5
+    }
+  },
+  "rewrites": [
+    { "source": "/api/webhook", "destination": "/api/webhook.js" },
+    { "source": "/api/health", "destination": "/api/health.js" }
+  ]
+}
